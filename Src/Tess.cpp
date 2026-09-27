@@ -14,6 +14,7 @@
 #include "RenderKit/Render.hpp"
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <print>
@@ -72,8 +73,9 @@ int main(int argc, char *argv[]) {
       SDL_Event event;
       SDL_StartTextInput(window);
 
-      std::string url = "";
-      bool focused = true;
+      Tess::Draw::TextField url_bar;
+      url_bar.focused = true;
+      float scroll_y = 0.0f;
 
       // Page source: navigated from the URL bar on Enter (sample first)
       Tess::Html::Document doc
@@ -105,6 +107,8 @@ int main(int argc, char *argv[]) {
                         window_width = event.window.data1;
                         window_height = event.window.data2;
                         page_dirty = true;
+                  } else if (event.type == SDL_EVENT_MOUSE_WHEEL) {
+                        scroll_y -= event.wheel.y * 40.0f;
                   } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
                         float mx = event.button.x;
                         float my = event.button.y;
@@ -114,29 +118,29 @@ int main(int argc, char *argv[]) {
                               // TODO(history): go forward when history exists
                         } else if (HitBox(menu_box, mx, my)) {
                               // TODO(settings): open menu when settings exist
+                        } else {
+                              Tess::Draw::FieldEvent(url_bar, event, url_box, txt);
                         }
-                        focused = HitBox(url_box, mx, my);
-                  } else if (focused && event.type == SDL_EVENT_TEXT_INPUT) {
-                        url += event.text.text;
-                  } else if (focused && event.type == SDL_EVENT_KEY_DOWN) {
-                        if (event.key.key == SDLK_BACKSPACE && !url.empty()) {
-                              url.pop_back();
-                        } else if (event.key.key == SDLK_RETURN && !url.empty()) {
-                              std::string raw = url;
+                  } else if (Tess::Draw::FieldEvent(url_bar, event, url_box, txt)) {
+                        if (url_bar.submitted) {
+                              url_bar.submitted = false;
+                              std::string raw = url_bar.value;
                               // bare path -> absolute file:// URL
-                              if (raw.find("://") == std::string::npos) {
-                                    std::error_code ec;
-                                    raw = "file://" + std::filesystem::absolute(raw, ec).string();
-                              }
-                              if (auto u = Tess::Net::ParseUrl(raw)) {
-                                    if (auto res = Tess::Net::FetchResponse(*u)) {
-                                          doc = Tess::Html::Parse(Tess::Html::Tokenize(res->body));
-                                          page_dirty = true;
-                                    } else {
-                                          std::println(stderr, "fetch failed: {}", url);
+                              if (!raw.empty()) {
+                                    if (raw.find("://") == std::string::npos) {
+                                          std::error_code ec;
+                                          raw = "file://" + std::filesystem::absolute(raw, ec).string();
                                     }
-                              } else {
-                                    std::println(stderr, "bad url: {}", url);
+                                    if (auto u = Tess::Net::ParseUrl(raw)) {
+                                          if (auto res = Tess::Net::FetchResponse(*u)) {
+                                                doc = Tess::Html::Parse(Tess::Html::Tokenize(res->body));
+                                                page_dirty = true;
+                                          } else {
+                                                std::println(stderr, "fetch failed: {}", url_bar.value);
+                                          }
+                                    } else {
+                                          std::println(stderr, "bad url: {}", url_bar.value);
+                                    }
                               }
                         }
                   }
@@ -144,18 +148,6 @@ int main(int argc, char *argv[]) {
 
             SDL_SetRenderDrawColor(renderer, 20, 20, 20, 255);
             SDL_RenderClear(renderer);
-
-            // Draw URL Box Background
-            SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
-            SDL_RenderFillRect(renderer, &url_box);
-
-            // Draw URL Box Border (blue when focused)
-            if (focused) {
-                  SDL_SetRenderDrawColor(renderer, 80, 160, 255, 255);
-            } else {
-                  SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
-            }
-            SDL_RenderRect(renderer, &url_box);
 
             // URL bar owns white/16pt; page text uses its own Typeface
             TTF_SetFontSize(font, 16);
@@ -166,12 +158,7 @@ int main(int argc, char *argv[]) {
             TTF_SetTextColor(txt, 255, 255, 255, 255);
             Tess::Draw::DrawText(renderer, txt, "≡", menu_box.x + 8, menu_box.y + 4);
             TTF_SetTextColor(txt, 255, 255, 255, 255);
-            Tess::Draw::DrawText(renderer, txt, url, url_box.x + 8, url_box.y + 5);
-
-            if (focused) {
-                  SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-                  Tess::Draw::DrawCaret(renderer, txt, url_box.x + 8, url_box.y + 5);
-            }
+            Tess::Draw::FieldDraw(url_bar, renderer, txt, url_box);
 
             // Page viewport: 5px under URL bar, 5px off left/right/bottom
             float page_y = url_box.y + url_box.h + 5.0f;
@@ -199,7 +186,15 @@ int main(int argc, char *argv[]) {
                   Tess::Render::Layout(content, page_face, doc, page.x + 8, page.y + 8, page.w - 16);
                   page_dirty = false;
             }
-            Tess::Render::Paint(renderer, content);
+            // Clamp scroll to content (8px pads top/bottom)
+            {
+                  float max_scroll = content.content_h + 16.0f - page.h;
+                  if (max_scroll < 0.0f) {
+                        max_scroll = 0.0f;
+                  }
+                  scroll_y = std::clamp(scroll_y, 0.0f, max_scroll);
+            }
+            Tess::Render::Paint(renderer, content, scroll_y);
 
             SDL_SetRenderClipRect(renderer, nullptr);
 

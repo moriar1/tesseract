@@ -67,7 +67,7 @@ void ClearPage(Page &page);
 void Layout(Page &page, Typeface &face, const Tess::Html::Document &doc, float x, float y, float max_w);
 
 // Per frame: draw cached lines only. No shaping, no measuring,
-// no font mutation.
-void Paint(SDL_Renderer *r, Page &page);
+// no font mutation. scroll offsets content upward (clipped).
+void Paint(SDL_Renderer *r, Page &page, float scroll);
 
 } // namespace Tess::Render

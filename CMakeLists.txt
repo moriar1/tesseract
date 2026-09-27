@@ -33,6 +33,7 @@ add_executable(tesseract
     # from DrawKit librery
     Libreries/DrawKit/src/Outline.cpp
     Libreries/DrawKit/src/Fill.cpp
+    Libreries/DrawKit/src/Widget.cpp
     # from HtmlKit librery
     Libreries/HtmlKit/src/Tokenize.cpp
     Libreries/HtmlKit/src/Parse.cpp

@@ -184,13 +184,13 @@ void Layout(Page &page, Typeface &face, const Tess::Html::Document &doc, float x
       page.content_h = cursor - y;
 }
 
-void Paint(SDL_Renderer *r, Page &page) {
+void Paint(SDL_Renderer *r, Page &page, float scroll) {
       (void)r;
       for (auto &line : page.lines) {
             if (!line.shaped) {
                   continue;
             }
-            TTF_DrawRendererText(line.shaped, line.x, line.y);
+            TTF_DrawRendererText(line.shaped, line.x, line.y - scroll);
       }
 }
 
