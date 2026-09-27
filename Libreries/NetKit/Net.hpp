@@ -13,10 +13,12 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace Tess::Net {
 
-/* URL
+/*=============== URL ===============*/
+/*
   https://user:pass@example.com:8443/path/to/page?query=1&foo=bar#section
   \___/   \_______/ \_________/ \__/\____________/ \____________/ \_____/
   scheme   userinfo    host     port     path          query      fragment
@@ -29,13 +31,20 @@ struct Url {
       std::string fragment;
       uint16_t port = 0; // 0 = "not specified"
 };
-std::optional<Url> ParseUrl(const std::string &raw);
+std::optional<Url> ParseUrl(std::string_view raw);
 
-/* Fetch Response */
+/*=============== Fetch Response ===============*/
 struct Response {
       int status;
       std::string body;
 };
 std::optional<Response> FetchResponse(const Url &url);
+
+/*=============== Socket ===============*/
+int SocketConnect(const std::string &host, uint16_t port);
+bool SocketSendAll(int fd, std::string_view data);
+// till recv==0, empty on immediate error
+std::string SockRecvAll(int fd);
+void SocketClose(int fd);
 
 } // namespace Tess::Net

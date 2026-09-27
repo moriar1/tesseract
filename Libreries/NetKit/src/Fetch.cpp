@@ -7,9 +7,12 @@
 */
 
 #include "NetKit/Net.hpp"
+#include <cctype>
 #include <fstream>
 #include <optional>
 #include <sstream>
+#include <string>
+#include <string_view>
 
 namespace Tess::Net {
 
@@ -28,13 +31,63 @@ static std::optional<Response> FetchFile(const Url &url) {
       return Response{200, s.str()};
 }
 
+static std::optional<Response> FetchHttp(const Url &url) {
+      int fd = SocketConnect(url.host, url.port);
+      if (fd < 0) {
+            return std::nullopt;
+      }
+      std::string target = url.path.empty() ? "/" : url.path;
+      if (!url.query.empty()) {
+            target += "?" + url.query;
+      }
+
+      std::string req = "GET " + target + " HTTP/1.0\r\nHost: " + url.host + "\r\nConnection: close\r\n\r\n";
+      if (!SocketSendAll(fd, req)) {
+            SocketClose(fd);
+            return std::nullopt;
+      }
+      std::string raw = SockRecvAll(fd);
+      SocketClose(fd);
+
+      // Split headers/body, status from the first line. Headers dropped in v1.
+      size_t split = raw.find("\r\n\r\n");
+      if (split == std::string::npos) {
+            return std::nullopt;
+      }
+      size_t line_end = raw.find("\r\n");
+      if (line_end == std::string::npos) {
+            return std::nullopt;
+      }
+      std::string_view status_line(raw.data(), line_end);
+      size_t sp1 = status_line.find(' ');
+      if (sp1 == std::string_view::npos) {
+            return std::nullopt;
+      }
+      size_t sp2 = status_line.find(' ', sp1 + 1);
+      std::string_view code = status_line.substr(sp1 + 1, sp2 - sp1 - 1);
+      if (code.empty()) {
+            return std::nullopt;
+      }
+      int status = 0;
+      for (char c : code) {
+            if (!std::isdigit((unsigned char)c)) {
+                  return std::nullopt;
+            }
+            status = status * 10 + (c - '0');
+      }
+      return Response{status, raw.substr(split + 4)};
+}
+
 /* Main */
 std::optional<Response> FetchResponse(const Url &url) {
       if (url.scheme == "file") {
             return FetchFile(url);
       }
+      if (url.scheme == "http") {
+            return FetchHttp(url);
+      }
 
-      return std::nullopt; // TODO: http/https transport
+      return std::nullopt; // TODO: https transport
 }
 
 } // namespace Tess::Net

@@ -13,20 +13,22 @@
 #include <optional>
 #include <ranges>
 #include <string>
+#include <string_view>
 
 namespace Tess::Net {
 
 /* Helper */
-static std::optional<uint16_t> ParsePort(const std::string &s) {
+static std::optional<uint16_t> ParsePort(std::string_view s) {
       if (s.empty() || s.size() > 5) {
             return std::nullopt;
       }
+      long port = 0;
       for (char c : s) {
             if (!std::isdigit((unsigned char)c)) {
                   return std::nullopt;
             }
+            port = port * 10 + (c - '0');
       }
-      long port = std::stol(s);
       if (port <= 0 || port > 65535) {
             return std::nullopt;
       }
@@ -34,7 +36,7 @@ static std::optional<uint16_t> ParsePort(const std::string &s) {
 }
 
 /* Main */
-std::optional<Url> ParseUrl(const std::string &raw) {
+std::optional<Url> ParseUrl(std::string_view raw) {
       Url url;
       size_t pos = 0;
 
@@ -43,8 +45,7 @@ std::optional<Url> ParseUrl(const std::string &raw) {
       if (scheme_end == std::string::npos) {
             return std::nullopt;
       }
-      url.scheme = raw.substr(0, scheme_end) 
-            | std::views::transform([](unsigned char c) { return std::tolower(c); })
+      url.scheme = raw.substr(0, scheme_end) | std::views::transform([](unsigned char c) { return std::tolower(c); })
             | std::ranges::to<std::string>();
       pos = scheme_end + 3;
 
@@ -53,7 +54,7 @@ std::optional<Url> ParseUrl(const std::string &raw) {
       if (auth_end == std::string::npos) {
             auth_end = raw.size();
       }
-      std::string authority = raw.substr(pos, auth_end - pos);
+      std::string authority{raw.substr(pos, auth_end - pos)};
       pos = auth_end;
 
       // strip userinfo if present
