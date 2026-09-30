@@ -45,10 +45,11 @@ add_executable(tesseract
     Libreries/NetKit/src/Http.cpp
 )
 if(WIN32)
-    target_sources(tesseract PRIVATE Libreries/NetKit/src/SocketWin.cpp)
-    target_link_libraries(tesseract PRIVATE ws2_32)
+      target_sources(tesseract PRIVATE Libreries/NetKit/src/SocketWin.cpp)
+      target_sources(tesseract PRIVATE Src/WinPrint.cpp)
+      target_link_libraries(tesseract PRIVATE ws2_32)
 else()
-    target_sources(tesseract PRIVATE Libreries/NetKit/src/SocketUnix.cpp)
+      target_sources(tesseract PRIVATE Libreries/NetKit/src/SocketUnix.cpp)
 endif()
 
 target_include_directories(tesseract PRIVATE

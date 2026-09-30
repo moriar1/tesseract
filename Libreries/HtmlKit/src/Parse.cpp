@@ -19,9 +19,7 @@ Document Parse(const std::vector<Token> &toks) {
       Document doc;
       doc.arena.push_back(Node{.tag = "document"});
       auto IsBlank = [](const std::string &s) {
-            return std::all_of(s.begin(), s.end(), [](unsigned char c) {
-                  return std::isspace(c) != 0;
-            });
+            return std::all_of(s.begin(), s.end(), [](unsigned char c) { return std::isspace(c) != 0; });
       };
 
       std::vector<size_t> stack;

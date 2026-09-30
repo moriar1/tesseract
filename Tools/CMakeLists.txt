@@ -8,9 +8,17 @@
 
 # Developer tools (lexdump, treedump, ...). Built with the main project.
 
+# MinGW std::print workaround (see Src/WinPrint.cpp).
+if(WIN32)
+      set(WINPRINT_SRC ../Src/WinPrint.cpp)
+else()
+      set(WINPRINT_SRC "")
+endif()
+
 add_executable(lexdump
     Debug/LexDump.cpp
     ../Libreries/HtmlKit/src/Tokenize.cpp
+    ${WINPRINT_SRC}
 )
 
 set_target_properties(lexdump PROPERTIES OUTPUT_NAME LexDump)
@@ -23,6 +31,7 @@ add_executable(treedump
     Debug/TreeDump.cpp
     ../Libreries/HtmlKit/src/Tokenize.cpp
     ../Libreries/HtmlKit/src/Parse.cpp
+    ${WINPRINT_SRC}
 )
 
 set_target_properties(treedump PROPERTIES OUTPUT_NAME TreeDump)
@@ -34,6 +43,7 @@ target_include_directories(treedump PRIVATE
 add_executable(urldump
     Debug/UrlDump.cpp
     ../Libreries/NetKit/src/Url.cpp
+    ${WINPRINT_SRC}
 )
 
 set_target_properties(urldump PROPERTIES OUTPUT_NAME UrlDump)

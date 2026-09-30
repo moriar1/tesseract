@@ -1,5 +1,7 @@
 build/
 build-asan/
+build-win/
+dist-win/
 .cache/
 .idea/
 .cmake-build-debug/
