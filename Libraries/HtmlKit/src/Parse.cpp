@@ -57,7 +57,7 @@ Document Parse(const std::vector<Token> &toks) {
                         continue;
                   }
                   size_t idx = doc.arena.size();
-                  doc.arena.push_back(Node{.tag = t.text});
+                  doc.arena.push_back(Node{.tag = t.text, .attributes = t.attributes});
                   doc.arena[stack.back()].kids.push_back(idx);
                   stack.push_back(idx);
             }

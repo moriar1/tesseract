@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -25,6 +26,7 @@ enum class TokenKind {
 struct Token {
       TokenKind kind;
       std::string text;
+      std::map<std::string, std::string> attributes;
 };
 std::vector<Token> Tokenize(std::string_view src);
 
@@ -33,6 +35,7 @@ struct Node {
       std::string tag;          // element name, "#text" for text
       std::string text;         // text content (tags leave empty)
       std::vector<size_t> kids; // indices into Document::arena
+      std::map<std::string, std::string> attributes;
 };
 struct Document {
       std::vector<Node> arena; // arena[0] is always the "document" root

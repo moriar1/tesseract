@@ -11,17 +11,21 @@
 #include "HtmlKit/Html.hpp"
 #include <cctype>
 #include <cstddef>
+#include <map>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
 namespace Tess::Html {
 
 /* Helper */
-static bool IsName(char c) {
+namespace {
+
+bool IsName(char c) {
       return std::isalnum((unsigned char)c);
 }
-
-static std::string Lower(std::string_view s) {
+std::string Lower(std::string_view s) {
       std::string r;
       r.reserve(s.size());
       for (char c : s) {
@@ -29,6 +33,76 @@ static std::string Lower(std::string_view s) {
       }
       return r;
 }
+
+// Parse '<tag ...>' at src front (caller guarantees '<' + letter).
+// Consumes through '>'. Null when no tag name follows.
+std::optional<Token> ParseTagOpen(std::string_view &src) {
+      src.remove_prefix(1); // Skip '<'
+
+      size_t name_len = 0;
+      while (name_len < src.size() && IsName(src[name_len])) {
+            ++name_len;
+      }
+      std::string_view name = src.substr(0, name_len);
+      if (name.empty()) {
+            return std::nullopt;
+      }
+
+      // Attributes: name="v" | name='v' | name=v | name
+      std::map<std::string, std::string> attrs;
+      src.remove_prefix(name_len);
+      while (!src.empty() && src[0] != '>') {
+            while (!src.empty() && std::isspace((unsigned char)src[0])) {
+                  src.remove_prefix(1);
+            }
+            if (src.empty() || src[0] == '>' || src[0] == '/') {
+                  break;
+            }
+
+            size_t an = 0;
+            while (an < src.size() && (IsName(src[an]) || src[an] == '-')) {
+                  ++an;
+            }
+            std::string key = Lower(src.substr(0, an));
+            src.remove_prefix(an);
+            while (!src.empty() && std::isspace((unsigned char)src[0])) {
+                  src.remove_prefix(1);
+            }
+            std::string val;
+            if (!src.empty() && src[0] == '=') {
+                  src.remove_prefix(1);
+                  while (!src.empty() && std::isspace((unsigned char)src[0])) {
+                        src.remove_prefix(1);
+                  }
+                  if (!src.empty() && (src[0] == '"' || src[0] == '\'')) {
+                        char q = src[0];
+                        src.remove_prefix(1);
+                        size_t e = src.find(q);
+                        size_t n = (e == std::string_view::npos) ? src.size() : e;
+                        val = std::string(src.substr(0, n));
+                        src.remove_prefix(e == std::string_view::npos ? n : n + 1);
+                  } else {
+                        size_t n = 0;
+                        while (n < src.size() && !std::isspace((unsigned char)src[n])
+                               && src[n] != '>') {
+                              ++n;
+                        }
+                        val = std::string(src.substr(0, n));
+                        src.remove_prefix(n);
+                  }
+            }
+            if (!key.empty()) {
+                  attrs[key] = val;
+            }
+      }
+      if (!src.empty() && src[0] == '>') {
+            // (strip optional '/' before it for <x/> later)
+            src.remove_prefix(1);
+      }
+      return Token{TokenKind::TK_TagOpen, Lower(name), std::move(attrs)};
+}
+
+} // namespace
 
 /* Main */
 std::vector<Token> Tokenize(std::string_view src) {
@@ -68,21 +142,8 @@ std::vector<Token> Tokenize(std::string_view src) {
             }
             // opening tag: '<' followed by a letter, else it's plain text
             else if (src.size() > 1 && src[0] == '<' && std::isalpha((unsigned char)src[1])) {
-                  src.remove_prefix(1); // Skip '<'
-
-                  size_t name_len = 0;
-                  while (name_len < src.size() && IsName(src[name_len])) {
-                        ++name_len;
-                  }
-                  std::string_view name = src.substr(0, name_len);
-
-                  // Skip attributes to '>'
-                  size_t gt = src.find('>');
-                  size_t skip = (gt == std::string_view::npos) ? src.size() : gt + 1;
-                  src.remove_prefix(skip);
-
-                  if (!name.empty()) {
-                        out.push_back({TokenKind::TK_TagOpen, Lower(name)});
+                  if (auto tok = ParseTagOpen(src)) {
+                        out.push_back(std::move(*tok));
                   }
             }
             // text

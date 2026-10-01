@@ -41,7 +41,11 @@ int main(int argc, char *argv[]) {
       stream << file.rdbuf();
 
       for (const auto &tok : Tess::Html::Tokenize(stream.str())) {
-            std::println("{} : {:?}", KindName(tok.kind), tok.text);
+            std::string attrs;
+            for (const auto &[key, val] : tok.attributes) {
+                  attrs += " " + key + "=" + std::string{"\""} + val + "\"";
+            }
+            std::println("{} : {:?}{}", KindName(tok.kind), tok.text, attrs);
       }
       return 0;
 }
