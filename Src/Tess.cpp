@@ -36,7 +36,8 @@ int main(int argc, char *argv[]) {
       int window_width = 800;
       int window_height = 600;
 
-      SDL_Window *window = SDL_CreateWindow("tesseract", window_width, window_height, SDL_WINDOW_RESIZABLE);
+      SDL_Window *window
+            = SDL_CreateWindow("tesseract", window_width, window_height, SDL_WINDOW_RESIZABLE);
       if (!window) {
             std::println(stderr, "Window creation failed: {}", SDL_GetError());
             SDL_Quit();
@@ -61,13 +62,15 @@ int main(int argc, char *argv[]) {
       TTF_SetTextColor(txt, 255, 255, 255, 255);
       // Page prose typeface: sans fallback (no CSS yet, monospace stays in chrome)
       std::string page_font_path = "Assets/fonts/NotoSans-Regular.ttf";
+      std::string page_bold_path = "Assets/fonts/NotoSans-Bold.ttf";
       {
             std::ifstream probe(page_font_path, std::ios::binary);
             if (!probe) {
                   page_font_path = "../Assets/fonts/NotoSans-Regular.ttf";
+                  page_bold_path = "../Assets/fonts/NotoSans-Bold.ttf";
             }
       }
-      Tess::Render::Typeface page_face(eng, page_font_path);
+      Tess::Render::Typeface page_face(eng, page_font_path, page_bold_path);
 
       /* Main drawing and events and element stuff */
       bool running = true;
@@ -79,8 +82,8 @@ int main(int argc, char *argv[]) {
       float scroll_y = 0.0f;
 
       // Page source: navigated from the URL bar on Enter (sample first)
-      Tess::Html::Document doc
-            = Tess::Html::Parse(Tess::Html::Tokenize("<h1>tesseract</h1><p>type a file:// url, hit enter</p>"));
+      Tess::Html::Document doc = Tess::Html::Parse(
+            Tess::Html::Tokenize("<h1>tesseract</h1><p>type a file:// url, hit enter</p>"));
       Tess::Render::Page content;
       bool page_dirty = true;
 
@@ -130,14 +133,17 @@ int main(int argc, char *argv[]) {
                               if (!raw.empty()) {
                                     if (raw.find("://") == std::string::npos) {
                                           std::error_code ec;
-                                          raw = "file://" + std::filesystem::absolute(raw, ec).string();
+                                          raw = "file://"
+                                                + std::filesystem::absolute(raw, ec).string();
                                     }
                                     if (auto u = Tess::Net::ParseUrl(raw)) {
                                           if (auto res = Tess::Net::FetchResponse(*u)) {
-                                                doc = Tess::Html::Parse(Tess::Html::Tokenize(res->body));
+                                                doc = Tess::Html::Parse(
+                                                      Tess::Html::Tokenize(res->body));
                                                 page_dirty = true;
                                           } else {
-                                                std::println(stderr, "fetch failed: {}", url_bar.value);
+                                                std::println(stderr, "fetch failed: {}",
+                                                             url_bar.value);
                                           }
                                     } else {
                                           std::println(stderr, "bad url: {}", url_bar.value);
@@ -186,7 +192,8 @@ int main(int argc, char *argv[]) {
 
             // Layout only on content/resize; paint replays cached lines
             if (page_dirty) {
-                  Tess::Render::Layout(content, page_face, doc, page.x + 8, page.y + 8, page.w - 16);
+                  Tess::Render::Layout(content, page_face, doc, page.x + 8, page.y + 8,
+                                       page.w - 16);
                   page_dirty = false;
             }
             // Clamp scroll to content (8px pads top/bottom)

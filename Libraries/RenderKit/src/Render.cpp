@@ -16,7 +16,8 @@
 namespace Tess::Render {
 
 /* Typeface */
-Typeface::Typeface(TTF_TextEngine *e, std::string p) : eng(e), path(std::move(p)) {}
+Typeface::Typeface(TTF_TextEngine *e, std::string p, std::string bp)
+    : eng(e), path(std::move(p)), bold_path(std::move(bp)) {}
 
 Typeface::~Typeface() {
       Close();
@@ -29,15 +30,33 @@ void Typeface::Close() {
             }
       }
       fonts.clear();
+      for (auto &[size, font] : bold_fonts) {
+            if (font) {
+                  TTF_CloseFont(font);
+            }
+      }
+      bold_fonts.clear();
 }
 
-TTF_Font *Typeface::At(float size) {
-      auto it = fonts.find(size);
-      if (it != fonts.end()) {
-            return it->second;
+TTF_Font *Typeface::At(float size, bool bold) {
+      auto &cache = bold ? bold_fonts : fonts;
+      const std::string &file = bold ? bold_path : path;
+      auto it = cache.find(size);
+      if (it != cache.end()) {
+            if (it->second) {
+                  return it->second;
+            }
+            // Bold file missing/broken: fall back to regular below.
+            if (bold) {
+                  return At(size, false);
+            }
+            return nullptr;
       }
-      TTF_Font *font = path.empty() ? nullptr : TTF_OpenFont(path.c_str(), size);
-      fonts[size] = font; // cache null too: don't retry a broken file per line
+      TTF_Font *font = file.empty() ? nullptr : TTF_OpenFont(file.c_str(), size);
+      cache[size] = font; // cache null too: don't retry a broken file per line
+      if (!font && bold) {
+            return At(size, false);
+      }
       return font;
 }
 
@@ -88,13 +107,21 @@ float SizeFor(const std::string &tag, float inherited) {
       return inherited;
 }
 bool IsBlock(const std::string &tag) {
-      return tag == "document" || tag == "div" || tag == "p" || tag == "h1" || tag == "h2" || tag == "h3" || tag == "h4"
-            || tag == "h5" || tag == "h6" || tag == "li" || tag == "ul";
+      return tag == "document" || tag == "div" || tag == "p" || tag == "h1" || tag == "h2"
+            || tag == "h3" || tag == "h4" || tag == "h5" || tag == "h6" || tag == "li"
+            || tag == "ul";
+}
+bool BoldFor(const std::string &tag, bool inherited) {
+      if (tag == "h1" || tag == "h2" || tag == "h3" || tag == "h4" || tag == "h5" || tag == "h6") {
+            return true;
+      }
+      return inherited;
 }
 
 // Wrap one text run into page lines (layout time only).
-void LayoutText(Page &page, Typeface &face, const std::string &text, float x, float &y, float max_w, float size) {
-      TTF_Font *font = face.At(size);
+void LayoutText(Page &page, Typeface &face, const std::string &text, float x, float &y, float max_w,
+                float size, bool bold) {
+      TTF_Font *font = face.At(size, bold);
       if (!font) {
             return;
       }
@@ -123,7 +150,8 @@ void LayoutText(Page &page, Typeface &face, const std::string &text, float x, fl
             if (shaped) {
                   TTF_SetTextColor(shaped, 20, 20, 20, 255);
             }
-            page.lines.push_back(Line{.text = line, .x = x, .y = y, .size = size, .font = font, .shaped = shaped});
+            page.lines.push_back(
+                  Line{.text = line, .x = x, .y = y, .size = size, .font = font, .shaped = shaped});
             y += (float)h + 2.0f;
             line.clear();
       };
@@ -139,19 +167,20 @@ void LayoutText(Page &page, Typeface &face, const std::string &text, float x, fl
       TTF_DestroyText(meas);
 }
 
-void LayoutChild(Page &page, Typeface &face, const Html::Document &doc, size_t idx, float x, float &y, float max_w,
-                 float size) {
+void LayoutChild(Page &page, Typeface &face, const Html::Document &doc, size_t idx, float x,
+                 float &y, float max_w, float size, bool bold) {
       const auto &node = doc.arena[idx];
       if (node.tag == "#text") {
-            LayoutText(page, face, node.text, x, y, max_w, size);
+            LayoutText(page, face, node.text, x, y, max_w, size, bold);
             return;
       }
       float my_size = SizeFor(node.tag, size);
+      bool my_bold = BoldFor(node.tag, bold);
       if (IsBlock(node.tag) && node.tag != "document") {
             y += 4.0f;
       }
       for (size_t k : node.kids) {
-            LayoutChild(page, face, doc, k, x, y, max_w, my_size);
+            LayoutChild(page, face, doc, k, x, y, max_w, my_size, my_bold);
       }
       if (IsBlock(node.tag) && node.tag != "document") {
             y += my_size * 0.4f;
@@ -172,14 +201,15 @@ void ClearPage(Page &page) {
       page.content_h = 0.0f;
 }
 
-void Layout(Page &page, Typeface &face, const Tess::Html::Document &doc, float x, float y, float max_w) {
+void Layout(Page &page, Typeface &face, const Tess::Html::Document &doc, float x, float y,
+            float max_w) {
       ClearPage(page);
       if (max_w <= 0.0f) {
             return;
       }
       float cursor = y;
       for (size_t k : doc.arena[0].kids) {
-            LayoutChild(page, face, doc, k, x, cursor, max_w, 16.0f);
+            LayoutChild(page, face, doc, k, x, cursor, max_w, 16.0f, false);
       }
       page.content_h = cursor - y;
 }

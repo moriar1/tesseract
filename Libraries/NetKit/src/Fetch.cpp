@@ -41,7 +41,8 @@ static std::optional<Response> FetchHttp(const Url &url) {
             target += "?" + url.query;
       }
 
-      std::string req = "GET " + target + " HTTP/1.0\r\nHost: " + url.host + "\r\nConnection: close\r\n\r\n";
+      std::string req
+            = "GET " + target + " HTTP/1.0\r\nHost: " + url.host + "\r\nConnection: close\r\n\r\n";
       if (!SocketSendAll(fd, req)) {
             SocketClose(fd);
             return std::nullopt;

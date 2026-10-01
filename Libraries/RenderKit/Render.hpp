@@ -28,21 +28,24 @@ namespace Tess::Render {
 struct Typeface {
       TTF_TextEngine *eng = nullptr;
       std::string path;
-      std::map<float, TTF_Font *> fonts; // owned, closed in dtor
+      std::string bold_path;
+      std::map<float, TTF_Font *> fonts;      // owned, closed in dtor
+      std::map<float, TTF_Font *> bold_fonts; // owned, closed in dtor
 
       Typeface() = default;
-      Typeface(TTF_TextEngine *eng, std::string path);
+      Typeface(TTF_TextEngine *eng, std::string path, std::string bold_path = "");
       ~Typeface();
       Typeface(const Typeface &) = delete;
       Typeface &operator=(const Typeface &) = delete;
 
       // Close all cached fonts. Must run before TTF_Quit; the dtor
-      // re-runs it harmlessly if you forget (map is cleared).
+      // re-runs it harmlessly if you forget (maps are cleared).
       void Close();
 
-      // Borrowed font at exact size, opening + caching on first use.
+      // Borrowed font at exact size + weight, opening + caching on first use.
+      // Bold falls back to regular when no bold file was given.
       // Null when the file cannot be opened.
-      TTF_Font *At(float size);
+      TTF_Font *At(float size, bool bold = false);
 };
 
 struct Line {
@@ -64,7 +67,8 @@ void ClearPage(Page &page);
 
 // Build lines once per content/resize. Shapes every line up front;
 // nothing here runs per frame.
-void Layout(Page &page, Typeface &face, const Tess::Html::Document &doc, float x, float y, float max_w);
+void Layout(Page &page, Typeface &face, const Tess::Html::Document &doc, float x, float y,
+            float max_w);
 
 // Per frame: draw cached lines only. No shaping, no measuring,
 // no font mutation. scroll offsets content upward (clipped).

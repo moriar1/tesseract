@@ -45,7 +45,8 @@ std::optional<Url> ParseUrl(std::string_view raw) {
       if (scheme_end == std::string::npos) {
             return std::nullopt;
       }
-      url.scheme = raw.substr(0, scheme_end) | std::views::transform([](unsigned char c) { return std::tolower(c); })
+      url.scheme = raw.substr(0, scheme_end)
+            | std::views::transform([](unsigned char c) { return std::tolower(c); })
             | std::ranges::to<std::string>();
       pos = scheme_end + 3;
 
