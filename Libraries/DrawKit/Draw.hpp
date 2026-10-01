@@ -6,7 +6,7 @@
 ** Released under the MIT License.
 */
 
-/* Draw wrapper librery for helping in rendering */
+/* Draw wrapper library for helping in rendering */
 
 #pragma once
 

@@ -2,4 +2,4 @@ CompileFlags:
   Add:
     - -std=c++23
     - -Iinclude
-    - -ILibreries
+    - -ILibraries

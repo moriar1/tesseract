@@ -17,37 +17,37 @@ endif()
 
 add_executable(lexdump
     Debug/LexDump.cpp
-    ../Libreries/HtmlKit/src/Tokenize.cpp
+    ../Libraries/HtmlKit/src/Tokenize.cpp
     ${WINPRINT_SRC}
 )
 
 set_target_properties(lexdump PROPERTIES OUTPUT_NAME LexDump)
 
 target_include_directories(lexdump PRIVATE
-    ../Libreries
+    ../Libraries
 )
 
 add_executable(treedump
     Debug/TreeDump.cpp
-    ../Libreries/HtmlKit/src/Tokenize.cpp
-    ../Libreries/HtmlKit/src/Parse.cpp
+    ../Libraries/HtmlKit/src/Tokenize.cpp
+    ../Libraries/HtmlKit/src/Parse.cpp
     ${WINPRINT_SRC}
 )
 
 set_target_properties(treedump PROPERTIES OUTPUT_NAME TreeDump)
 
 target_include_directories(treedump PRIVATE
-    ../Libreries
+    ../Libraries
 )
 
 add_executable(urldump
     Debug/UrlDump.cpp
-    ../Libreries/NetKit/src/Url.cpp
+    ../Libraries/NetKit/src/Url.cpp
     ${WINPRINT_SRC}
 )
 
 set_target_properties(urldump PROPERTIES OUTPUT_NAME UrlDump)
 
 target_include_directories(urldump PRIVATE
-    ../Libreries
+    ../Libraries
 )

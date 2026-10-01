@@ -30,30 +30,30 @@ endif()
 
 add_executable(tesseract
     Src/Tess.cpp
-    # from DrawKit librery
-    Libreries/DrawKit/src/Outline.cpp
-    Libreries/DrawKit/src/Fill.cpp
-    Libreries/DrawKit/src/Widget.cpp
-    # from HtmlKit librery
-    Libreries/HtmlKit/src/Tokenize.cpp
-    Libreries/HtmlKit/src/Parse.cpp
-    # from RenderKit librery
-    Libreries/RenderKit/src/Render.cpp
-    # from NetKit librery
-    Libreries/NetKit/src/Url.cpp
-    Libreries/NetKit/src/Fetch.cpp
-    Libreries/NetKit/src/Http.cpp
+    # from DrawKit library
+    Libraries/DrawKit/src/Outline.cpp
+    Libraries/DrawKit/src/Fill.cpp
+    Libraries/DrawKit/src/Widget.cpp
+    # from HtmlKit library
+    Libraries/HtmlKit/src/Tokenize.cpp
+    Libraries/HtmlKit/src/Parse.cpp
+    # from RenderKit library
+    Libraries/RenderKit/src/Render.cpp
+    # from NetKit library
+    Libraries/NetKit/src/Url.cpp
+    Libraries/NetKit/src/Fetch.cpp
+    Libraries/NetKit/src/Http.cpp
 )
 if(WIN32)
-      target_sources(tesseract PRIVATE Libreries/NetKit/src/SocketWin.cpp)
+      target_sources(tesseract PRIVATE Libraries/NetKit/src/SocketWin.cpp)
       target_sources(tesseract PRIVATE Src/WinPrint.cpp)
       target_link_libraries(tesseract PRIVATE ws2_32)
 else()
-      target_sources(tesseract PRIVATE Libreries/NetKit/src/SocketUnix.cpp)
+      target_sources(tesseract PRIVATE Libraries/NetKit/src/SocketUnix.cpp)
 endif()
 
 target_include_directories(tesseract PRIVATE
-    Libreries
+    Libraries
 )
 
 target_link_libraries(tesseract PRIVATE
