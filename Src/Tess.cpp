@@ -12,6 +12,7 @@
 #include "HtmlKit/Html.hpp"
 #include "NetKit/Net.hpp"
 #include "RenderKit/Render.hpp"
+
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <algorithm>
@@ -84,15 +85,15 @@ int main(int argc, char *argv[]) {
       bool page_dirty = true;
 
       while (running) {
-            // Chrome slots: [back][forward] url... [menu], 30px boxes
-            SDL_FRect back_box = {5.0f, 6.0f, 30.0f, 30.0f};
-            SDL_FRect fwd_box = {38.0f, 6.0f, 30.0f, 30.0f};
-            SDL_FRect menu_box = {(float)window_width - 35.0f, 6.0f, 30.0f, 30.0f};
+            // Chrome slots: [back][forward] url... [menu], 24px bar at y=5
+            SDL_FRect back_box = {5.0f, 5.0f, 24.0f, 24.0f};
+            SDL_FRect fwd_box = {31.0f, 5.0f, 24.0f, 24.0f};
+            SDL_FRect menu_box = {(float)window_width - 39.0f, 5.0f, 34.0f, 24.0f};
             SDL_FRect url_box = {
-                  71.0f,
-                  6.0f,
-                  (float)window_width - 71.0f - 43.0f,
-                  30.0f,
+                  57.0f,
+                  5.0f,
+                  (float)window_width - 57.0f - 41.0f,
+                  28.0f,
             };
             auto HitBox = [](SDL_FRect b, float mx, float my) {
                   return mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h;
@@ -151,12 +152,14 @@ int main(int argc, char *argv[]) {
 
             // URL bar owns white/16pt; page text uses its own Typeface
             TTF_SetFontSize(font, 16);
-            // Chrome buttons: back/fwd dimmed (no history yet), menu white
+            // Chrome buttons: back/fwd dimmed (no history yet), menu white + bigger
             TTF_SetTextColor(txt, 100, 100, 100, 255);
-            Tess::Draw::DrawText(renderer, txt, "←", back_box.x + 8, back_box.y + 4);
-            Tess::Draw::DrawText(renderer, txt, "→", fwd_box.x + 8, fwd_box.y + 4);
+            Tess::Draw::DrawText(renderer, txt, "←", back_box.x + 6, back_box.y + 2);
+            Tess::Draw::DrawText(renderer, txt, "→", fwd_box.x + 6, fwd_box.y + 2);
+            TTF_SetFontSize(font, 20);
             TTF_SetTextColor(txt, 255, 255, 255, 255);
-            Tess::Draw::DrawText(renderer, txt, "≡", menu_box.x + 8, menu_box.y + 4);
+            Tess::Draw::DrawText(renderer, txt, "≡", menu_box.x + 9, menu_box.y + 1);
+            TTF_SetFontSize(font, 16);
             TTF_SetTextColor(txt, 255, 255, 255, 255);
             Tess::Draw::FieldDraw(url_bar, renderer, txt, url_box);
 

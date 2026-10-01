@@ -41,6 +41,12 @@ std::vector<Token> Tokenize(std::string_view src) {
                   size_t skip = (e == std::string_view::npos) ? src.size() : e + 3;
                   src.remove_prefix(skip);
             }
+            // skip <!DOCTYPE ...> and other <! declarations
+            else if (src.starts_with("<!")) {
+                  size_t gt = src.find('>');
+                  size_t skip = (gt == std::string_view::npos) ? src.size() : gt + 1;
+                  src.remove_prefix(skip);
+            }
             // closing tag
             else if (src.starts_with("</")) {
                   src.remove_prefix(2);

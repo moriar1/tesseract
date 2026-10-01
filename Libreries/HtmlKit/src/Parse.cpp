@@ -25,7 +25,11 @@ Document Parse(const std::vector<Token> &toks) {
       std::vector<size_t> stack;
       stack.push_back(0);
 
-      for (auto &t : toks) {
+      // Raw-text elements: contents are code, never page text.
+      auto IsRaw = [](const std::string &tag) { return tag == "style" || tag == "script" || tag == "noscript"; };
+
+      for (size_t i = 0; i < toks.size(); ++i) {
+            const auto &t = toks[i];
             if (t.kind == TokenKind::TK_Text) {
                   if (IsBlank(t.text)) {
                         continue;
@@ -36,6 +40,18 @@ Document Parse(const std::vector<Token> &toks) {
             }
             // <>
             else if (t.kind == TokenKind::TK_TagOpen) {
+                  if (IsRaw(t.text)) {
+                        // Skip to matching close (depth-counted for safety).
+                        size_t depth = 1;
+                        while (++i < toks.size() && depth > 0) {
+                              if (toks[i].kind == TokenKind::TK_TagOpen && toks[i].text == t.text) {
+                                    ++depth;
+                              } else if (toks[i].kind == TokenKind::TK_TagClose && toks[i].text == t.text) {
+                                    --depth;
+                              }
+                        }
+                        continue;
+                  }
                   size_t idx = doc.arena.size();
                   doc.arena.push_back(Node{.tag = t.text});
                   doc.arena[stack.back()].kids.push_back(idx);
