@@ -69,6 +69,7 @@ struct Page {
       std::vector<Line> lines;
       std::vector<LinkRect> hits; // rebuilt at layout, layout coords
       float content_h = 0.0f;
+      bool dark = false; // error pages: light text, Tess paints dark bg
 };
 
 // Free all shaped texts. Call before re-layout and at shutdown.

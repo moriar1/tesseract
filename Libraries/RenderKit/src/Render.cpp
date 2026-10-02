@@ -149,7 +149,13 @@ void LayoutText(Page &page, Typeface &face, const std::string &text, float x, fl
             TTF_Text *shaped = TTF_CreateText(face.eng, font, line.c_str(), line.size());
             if (shaped) {
                   if (link.empty()) {
-                        TTF_SetTextColor(shaped, 20, 20, 20, 255);
+                        if (page.dark) {
+                              TTF_SetTextColor(shaped, 220, 220, 220, 255);
+                        } else {
+                              TTF_SetTextColor(shaped, 20, 20, 20, 255);
+                        }
+                  } else if (page.dark) {
+                        TTF_SetTextColor(shaped, 120, 170, 255, 255);
                   } else {
                         TTF_SetTextColor(shaped, 20, 60, 200, 255);
                   }
@@ -244,7 +250,11 @@ void Paint(SDL_Renderer *r, Page &page, float scroll) {
             }
             TTF_DrawRendererText(line.shaped, line.x, line.y - scroll);
             if (!line.link.empty()) {
-                  SDL_SetRenderDrawColor(r, 20, 60, 200, 255);
+                  if (page.dark) {
+                        SDL_SetRenderDrawColor(r, 120, 170, 255, 255);
+                  } else {
+                        SDL_SetRenderDrawColor(r, 20, 60, 200, 255);
+                  }
                   float uy = line.y - scroll + line.h;
                   SDL_RenderLine(r, line.x, uy, line.x + line.w, uy);
             }

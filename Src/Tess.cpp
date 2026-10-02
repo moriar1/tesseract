@@ -11,6 +11,7 @@
 #include "DrawKit/Draw.hpp"
 #include "HtmlKit/Html.hpp"
 #include "NetKit/Net.hpp"
+#include "Pages/Error.hpp"
 #include "RenderKit/Render.hpp"
 
 #include <SDL3/SDL.h>
@@ -93,6 +94,13 @@ int main(int argc, char *argv[]) {
       std::vector<std::string> fwd_hist;
 
       // Returns the navigated-to raw URL, empty when it failed.
+      // Failures paint a dark error page instead of only logging.
+      auto ShowError = [&](const std::string &raw, const std::string &reason) {
+            doc = Tess::Html::Parse(Tess::Html::Tokenize(Tess::Pages::CannotReachHtml(raw, reason)));
+            content.dark = true;
+            page_dirty = true;
+            scroll_y = 0.0f;
+      };
       auto Navigate = [&](const std::string &raw, bool push_hist) -> std::string {
             std::string target = raw;
             if (target.find("://") == std::string::npos) {
@@ -102,11 +110,13 @@ int main(int argc, char *argv[]) {
             auto u = Tess::Net::ParseUrl(target);
             if (!u) {
                   std::println(stderr, "bad url: {}", raw);
+                  ShowError(raw, "The address could not be understood.");
                   return "";
             }
             auto res = Tess::Net::FetchResponse(*u);
             if (!res) {
                   std::println(stderr, "fetch failed: {}", raw);
+                  ShowError(raw, "The server could not be reached.");
                   return "";
             }
             if (push_hist && !base_raw.empty()) {
@@ -114,6 +124,7 @@ int main(int argc, char *argv[]) {
                   fwd_hist.clear();
             }
             doc = Tess::Html::Parse(Tess::Html::Tokenize(res->body));
+            content.dark = false;
             base_url = *u;
             base_raw = target;
             page_dirty = true;
@@ -234,7 +245,12 @@ int main(int argc, char *argv[]) {
             if (page.h < 0.0f) {
                   page.h = 0.0f;
             }
-            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            // Error pages go dark grey like chrome, normal pages white.
+            if (content.dark) {
+                  SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
+            } else {
+                  SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            }
             SDL_RenderFillRect(renderer, &page);
 
             // Clip all page content to the viewport
