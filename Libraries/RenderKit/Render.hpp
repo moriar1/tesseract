@@ -12,8 +12,10 @@
 
 #include "DrawKit/Draw.hpp"
 #include "HtmlKit/Html.hpp"
+#include "NetKit/Net.hpp"
 
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_rect.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
 #include <map>
@@ -49,16 +51,23 @@ struct Typeface {
 };
 
 struct Line {
-      std::string text; // final wrapped line
-      float x = 0.0f;   // draw position
+      std::string text;
+      float x = 0.0f;
       float y = 0.0f;
+      float w = 0.0f; // measured width, for underlines + hit rects
+      float h = 0.0f; // measured height
       float size = 16.0f;
-      TTF_Font *font = nullptr;   // borrowed from Typeface, never null
-      TTF_Text *shaped = nullptr; // owned, created at layout, drawn per frame
+      std::string link; // resolved target, empty = plain
+      TTF_Font *font = nullptr;
+      TTF_Text *shaped = nullptr;
 };
-
+struct LinkRect {
+      SDL_FRect rect;
+      std::string target;
+};
 struct Page {
       std::vector<Line> lines;
+      std::vector<LinkRect> hits; // rebuilt at layout, layout coords
       float content_h = 0.0f;
 };
 
@@ -68,7 +77,7 @@ void ClearPage(Page &page);
 // Build lines once per content/resize. Shapes every line up front;
 // nothing here runs per frame.
 void Layout(Page &page, Typeface &face, const Tess::Html::Document &doc, float x, float y,
-            float max_w);
+            float max_w, const Tess::Net::Url &base);
 
 // Per frame: draw cached lines only. No shaping, no measuring,
 // no font mutation. scroll offsets content upward (clipped).

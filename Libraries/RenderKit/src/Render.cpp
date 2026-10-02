@@ -120,7 +120,7 @@ bool BoldFor(const std::string &tag, bool inherited) {
 
 // Wrap one text run into page lines (layout time only).
 void LayoutText(Page &page, Typeface &face, const std::string &text, float x, float &y, float max_w,
-                float size, bool bold) {
+                float size, bool bold, const std::string &link) {
       TTF_Font *font = face.At(size, bold);
       if (!font) {
             return;
@@ -148,10 +148,24 @@ void LayoutText(Page &page, Typeface &face, const std::string &text, float x, fl
             Tess::Draw::TextSize(meas, w, h);
             TTF_Text *shaped = TTF_CreateText(face.eng, font, line.c_str(), line.size());
             if (shaped) {
-                  TTF_SetTextColor(shaped, 20, 20, 20, 255);
+                  if (link.empty()) {
+                        TTF_SetTextColor(shaped, 20, 20, 20, 255);
+                  } else {
+                        TTF_SetTextColor(shaped, 20, 60, 200, 255);
+                  }
             }
-            page.lines.push_back(
-                  Line{.text = line, .x = x, .y = y, .size = size, .font = font, .shaped = shaped});
+            page.lines.push_back(Line{.text = line,
+                                      .x = x,
+                                      .y = y,
+                                      .w = (float)w,
+                                      .h = (float)h,
+                                      .size = size,
+                                      .link = link,
+                                      .font = font,
+                                      .shaped = shaped});
+            if (!link.empty()) {
+                  page.hits.push_back(LinkRect{{x, y, (float)w, (float)h + 2.0f}, link});
+            }
             y += (float)h + 2.0f;
             line.clear();
       };
@@ -168,19 +182,27 @@ void LayoutText(Page &page, Typeface &face, const std::string &text, float x, fl
 }
 
 void LayoutChild(Page &page, Typeface &face, const Html::Document &doc, size_t idx, float x,
-                 float &y, float max_w, float size, bool bold) {
+                 float &y, float max_w, float size, bool bold, const Tess::Net::Url &base,
+                 const std::string &link) {
       const auto &node = doc.arena[idx];
       if (node.tag == "#text") {
-            LayoutText(page, face, node.text, x, y, max_w, size, bold);
+            LayoutText(page, face, node.text, x, y, max_w, size, bold, link);
             return;
       }
       float my_size = SizeFor(node.tag, size);
       bool my_bold = BoldFor(node.tag, bold);
+      std::string my_link = link;
+      if (node.tag == "a") {
+            auto it = node.attributes.find("href");
+            if (it != node.attributes.end()) {
+                  my_link = Tess::Net::Resolve(base, it->second);
+            }
+      }
       if (IsBlock(node.tag) && node.tag != "document") {
             y += 4.0f;
       }
       for (size_t k : node.kids) {
-            LayoutChild(page, face, doc, k, x, y, max_w, my_size, my_bold);
+            LayoutChild(page, face, doc, k, x, y, max_w, my_size, my_bold, base, my_link);
       }
       if (IsBlock(node.tag) && node.tag != "document") {
             y += my_size * 0.4f;
@@ -198,29 +220,34 @@ void ClearPage(Page &page) {
             }
       }
       page.lines.clear();
+      page.hits.clear();
       page.content_h = 0.0f;
 }
 
 void Layout(Page &page, Typeface &face, const Tess::Html::Document &doc, float x, float y,
-            float max_w) {
+            float max_w, const Tess::Net::Url &base) {
       ClearPage(page);
       if (max_w <= 0.0f) {
             return;
       }
       float cursor = y;
       for (size_t k : doc.arena[0].kids) {
-            LayoutChild(page, face, doc, k, x, cursor, max_w, 16.0f, false);
+            LayoutChild(page, face, doc, k, x, cursor, max_w, 16.0f, false, base, "");
       }
       page.content_h = cursor - y;
 }
 
 void Paint(SDL_Renderer *r, Page &page, float scroll) {
-      (void)r;
       for (auto &line : page.lines) {
             if (!line.shaped) {
                   continue;
             }
             TTF_DrawRendererText(line.shaped, line.x, line.y - scroll);
+            if (!line.link.empty()) {
+                  SDL_SetRenderDrawColor(r, 20, 60, 200, 255);
+                  float uy = line.y - scroll + line.h;
+                  SDL_RenderLine(r, line.x, uy, line.x + line.w, uy);
+            }
       }
 }
 

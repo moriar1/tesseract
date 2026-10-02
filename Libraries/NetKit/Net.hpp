@@ -32,6 +32,7 @@ struct Url {
       uint16_t port = 0; // 0 = "not specified"
 };
 std::optional<Url> ParseUrl(std::string_view raw);
+std::string Resolve(const Url &base, const std::string &href);
 
 /*=============== Fetch Response ===============*/
 struct Response {

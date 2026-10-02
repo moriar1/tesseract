@@ -7,6 +7,7 @@
 */
 
 #include "NetKit/Net.hpp"
+
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
@@ -14,11 +15,14 @@
 #include <ranges>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace Tess::Net {
 
 /* Helper */
-static std::optional<uint16_t> ParsePort(std::string_view s) {
+namespace {
+
+std::optional<uint16_t> ParsePort(std::string_view s) {
       if (s.empty() || s.size() > 5) {
             return std::nullopt;
       }
@@ -34,6 +38,19 @@ static std::optional<uint16_t> ParsePort(std::string_view s) {
       }
       return (uint16_t)port;
 }
+
+std::string Sterialize(const Url &url, const std::string &path) {
+      std::string out = url.scheme + "://" + url.host;
+      bool def = (url.scheme == "http" && url.port == 80)
+            || (url.scheme == "https" && url.port == 443);
+
+      if (url.port != 0 && !def) {
+            out += ":" + std::to_string(url.port);
+      }
+      return out + path;
+}
+
+} // namespace
 
 /* Main */
 std::optional<Url> ParseUrl(std::string_view raw) {
@@ -127,6 +144,59 @@ std::optional<Url> ParseUrl(std::string_view raw) {
       }
 
       return url;
+}
+
+std::string Resolve(const Url &base, const std::string &href) {
+      if (href.empty()) {
+            return "";
+      }
+      if (href.find("://") != std::string::npos) {
+            return ParseUrl(href) ? href : "";
+      }
+      if (base.scheme.empty()) {
+            return "";
+      }
+      bool is_file = (base.scheme == "file");
+      if (!is_file && base.host.empty()) {
+            return "";
+      }
+      if (href[0] == '/') {
+            return Sterialize(base, href);
+      }
+
+      // fold ./ and ../
+      std::string dir = base.path;
+      size_t slash = dir.rfind('/');
+      dir = (slash == std::string::npos) ? "/" : dir.substr(0, slash + 1);
+      std::string merged = dir + href;
+      std::vector<std::string> segs;
+      size_t i = 0;
+      while (i < merged.size()) {
+            size_t j = merged.find('/', i);
+            if (j == std::string::npos) {
+                  j = merged.size();
+            }
+            std::string part = merged.substr(i, j - i);
+            if (part.empty() || part == ".") {
+                  // skip
+            } else if (part == "..") {
+                  if (!segs.empty()) {
+                        segs.pop_back();
+                  }
+            } else {
+                  segs.push_back(part);
+            }
+            i = j + 1;
+      }
+
+      std::string path = "/";
+      for (size_t k = 0; k < segs.size(); ++k) {
+            if (k > 0) {
+                  path += '/';
+            }
+            path += segs[k];
+      }
+      return Sterialize(base, path);
 }
 
 } // namespace Tess::Net

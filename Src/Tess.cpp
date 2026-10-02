@@ -20,6 +20,7 @@
 #include <fstream>
 #include <print>
 #include <string>
+#include <vector>
 
 int main(int argc, char *argv[]) {
 
@@ -86,6 +87,39 @@ int main(int argc, char *argv[]) {
             Tess::Html::Tokenize("<h1>tesseract</h1><p>type a file:// url, hit enter</p>"));
       Tess::Render::Page content;
       bool page_dirty = true;
+      Tess::Net::Url base_url; // page links resolve against this
+      std::string base_raw;
+      std::vector<std::string> back_hist;
+      std::vector<std::string> fwd_hist;
+
+      // Returns the navigated-to raw URL, empty when it failed.
+      auto Navigate = [&](const std::string &raw, bool push_hist) -> std::string {
+            std::string target = raw;
+            if (target.find("://") == std::string::npos) {
+                  std::error_code ec;
+                  target = "file://" + std::filesystem::absolute(target, ec).string();
+            }
+            auto u = Tess::Net::ParseUrl(target);
+            if (!u) {
+                  std::println(stderr, "bad url: {}", raw);
+                  return "";
+            }
+            auto res = Tess::Net::FetchResponse(*u);
+            if (!res) {
+                  std::println(stderr, "fetch failed: {}", raw);
+                  return "";
+            }
+            if (push_hist && !base_raw.empty()) {
+                  back_hist.push_back(base_raw);
+                  fwd_hist.clear();
+            }
+            doc = Tess::Html::Parse(Tess::Html::Tokenize(res->body));
+            base_url = *u;
+            base_raw = target;
+            page_dirty = true;
+            scroll_y = 0.0f;
+            return target;
+      };
 
       while (running) {
             // Chrome slots: [back][forward] url... [menu], 24px bar at y=5
@@ -117,37 +151,45 @@ int main(int argc, char *argv[]) {
                         float mx = event.button.x;
                         float my = event.button.y;
                         if (HitBox(back_box, mx, my)) {
-                              // TODO(history): go back when history exists
+                              if (!back_hist.empty()) {
+                                    fwd_hist.push_back(base_raw);
+                                    std::string prev = back_hist.back();
+                                    back_hist.pop_back();
+                                    url_bar.value = prev;
+                                    Navigate(prev, false);
+                              }
                         } else if (HitBox(fwd_box, mx, my)) {
-                              // TODO(history): go forward when history exists
+                              if (!fwd_hist.empty()) {
+                                    back_hist.push_back(base_raw);
+                                    std::string next = fwd_hist.back();
+                                    fwd_hist.pop_back();
+                                    url_bar.value = next;
+                                    Navigate(next, false);
+                              }
                         } else if (HitBox(menu_box, mx, my)) {
                               // TODO(settings): open menu when settings exist
                         } else {
-                              Tess::Draw::FieldEvent(url_bar, event, url_box, txt);
+                              // Page links first (layout coords), then the field.
+                              bool linked = false;
+                              float ly = my + scroll_y;
+                              for (const auto &hit : content.hits) {
+                                    if (mx >= hit.rect.x && mx <= hit.rect.x + hit.rect.w
+                                        && ly >= hit.rect.y && ly <= hit.rect.y + hit.rect.h) {
+                                          url_bar.value = hit.target;
+                                          Navigate(hit.target, true);
+                                          linked = true;
+                                          break;
+                                    }
+                              }
+                              if (!linked) {
+                                    Tess::Draw::FieldEvent(url_bar, event, url_box, txt);
+                              }
                         }
                   } else if (Tess::Draw::FieldEvent(url_bar, event, url_box, txt)) {
                         if (url_bar.submitted) {
                               url_bar.submitted = false;
-                              std::string raw = url_bar.value;
-                              // bare path -> absolute file:// URL
-                              if (!raw.empty()) {
-                                    if (raw.find("://") == std::string::npos) {
-                                          std::error_code ec;
-                                          raw = "file://"
-                                                + std::filesystem::absolute(raw, ec).string();
-                                    }
-                                    if (auto u = Tess::Net::ParseUrl(raw)) {
-                                          if (auto res = Tess::Net::FetchResponse(*u)) {
-                                                doc = Tess::Html::Parse(
-                                                      Tess::Html::Tokenize(res->body));
-                                                page_dirty = true;
-                                          } else {
-                                                std::println(stderr, "fetch failed: {}",
-                                                             url_bar.value);
-                                          }
-                                    } else {
-                                          std::println(stderr, "bad url: {}", url_bar.value);
-                                    }
+                              if (!url_bar.value.empty()) {
+                                    Navigate(url_bar.value, true);
                               }
                         }
                   }
@@ -158,9 +200,18 @@ int main(int argc, char *argv[]) {
 
             // URL bar owns white/16pt; page text uses its own Typeface
             TTF_SetFontSize(font, 16);
-            // Chrome buttons: back/fwd dimmed (no history yet), menu white + bigger
-            TTF_SetTextColor(txt, 100, 100, 100, 255);
+            // Chrome buttons: lit when their history stack is non-empty
+            if (back_hist.empty()) {
+                  TTF_SetTextColor(txt, 100, 100, 100, 255);
+            } else {
+                  TTF_SetTextColor(txt, 255, 255, 255, 255);
+            }
             Tess::Draw::DrawText(renderer, txt, "←", back_box.x + 6, back_box.y + 2);
+            if (fwd_hist.empty()) {
+                  TTF_SetTextColor(txt, 100, 100, 100, 255);
+            } else {
+                  TTF_SetTextColor(txt, 255, 255, 255, 255);
+            }
             Tess::Draw::DrawText(renderer, txt, "→", fwd_box.x + 6, fwd_box.y + 2);
             TTF_SetFontSize(font, 20);
             TTF_SetTextColor(txt, 255, 255, 255, 255);
@@ -192,8 +243,8 @@ int main(int argc, char *argv[]) {
 
             // Layout only on content/resize; paint replays cached lines
             if (page_dirty) {
-                  Tess::Render::Layout(content, page_face, doc, page.x + 8, page.y + 8,
-                                       page.w - 16);
+                  Tess::Render::Layout(content, page_face, doc, page.x + 8, page.y + 8, page.w - 16,
+                                       base_url);
                   page_dirty = false;
             }
             // Clamp scroll to content (8px pads top/bottom)
