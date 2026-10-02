@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include "ErrorKit/Error.hpp"
+
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -39,10 +41,15 @@ struct Response {
       int status;
       std::string body;
 };
-std::optional<Response> FetchResponse(const Url &url);
+// err carries the precise failure; check it when the optional is empty.
+std::optional<Response> FetchResponse(const Url &url, Tess::Error::Err &err);
 
 /*=============== Socket ===============*/
-int SocketConnect(const std::string &host, uint16_t port);
+struct ConnectOutcome {
+      int fd = -1;
+      Tess::Error::Err err = Tess::Error::Err::ERR_NO_NETWORK;
+};
+ConnectOutcome SocketConnect(const std::string &host, uint16_t port);
 bool SocketSendAll(int fd, std::string_view data);
 // till recv==0, empty on immediate error
 std::string SockRecvAll(int fd);

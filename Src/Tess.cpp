@@ -95,9 +95,9 @@ int main(int argc, char *argv[]) {
 
       // Returns the navigated-to raw URL, empty when it failed.
       // Failures paint a dark error page instead of only logging.
-      auto ShowError = [&](const std::string &raw, const std::string &reason) {
+      auto ShowError = [&](const std::string &raw, Tess::Error::Err err, int http_status) {
             doc = Tess::Html::Parse(
-                  Tess::Html::Tokenize(Tess::Pages::CannotReachHtml(raw, reason)));
+                  Tess::Html::Tokenize(Tess::Pages::CannotReachHtml(raw, err, http_status)));
             content.dark = true;
             page_dirty = true;
             scroll_y = 0.0f;
@@ -111,13 +111,22 @@ int main(int argc, char *argv[]) {
             auto u = Tess::Net::ParseUrl(target);
             if (!u) {
                   std::println(stderr, "bad url: {}", raw);
-                  ShowError(raw, "The address could not be understood.");
+                  ShowError(raw, Tess::Error::Err::ERR_INVALID_URL, 0);
                   return "";
             }
-            auto res = Tess::Net::FetchResponse(*u);
+            Tess::Error::Err err = Tess::Error::Err::ERR_UNKNOWN;
+            auto res = Tess::Net::FetchResponse(*u, err);
             if (!res) {
-                  std::println(stderr, "fetch failed: {}", raw);
-                  ShowError(raw, "The server could not be reached.");
+                  std::println(stderr, "fetch failed ({}): {}", Tess::Error::Name(err), raw);
+                  ShowError(raw, err, 0);
+                  return "";
+            }
+            if (res->status != 200) {
+                  std::println(stderr, "http {}: {}", res->status, raw);
+                  Tess::Error::Err status_err = res->status == 404
+                        ? Tess::Error::Err::ERR_NOT_FOUND
+                        : Tess::Error::Err::ERR_UNKNOWN;
+                  ShowError(raw, status_err, res->status);
                   return "";
             }
             if (push_hist && !base_raw.empty()) {

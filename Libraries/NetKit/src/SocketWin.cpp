@@ -35,9 +35,9 @@ bool WinsockUp() {
 
 } // namespace
 
-int SocketConnect(const std::string &host, uint16_t port) {
+ConnectOutcome SocketConnect(const std::string &host, uint16_t port) {
       if (!WinsockUp()) {
-            return -1;
+            return ConnectOutcome{-1, Tess::Error::Err::ERR_NO_NETWORK};
       }
       struct addrinfo hint{};
       hint.ai_family = AF_UNSPEC;     // IPv4 or IPv6
@@ -47,7 +47,7 @@ int SocketConnect(const std::string &host, uint16_t port) {
       std::string port_str = std::to_string(port);
 
       if (getaddrinfo(host.c_str(), port_str.c_str(), &hint, &res) != 0 || res == nullptr) {
-            return -1;
+            return ConnectOutcome{-1, Tess::Error::Err::ERR_NAME_NOT_RESOLVED};
       }
 
       SOCKET sock = INVALID_SOCKET;
@@ -64,7 +64,10 @@ int SocketConnect(const std::string &host, uint16_t port) {
       }
 
       freeaddrinfo(res);
-      return (sock == INVALID_SOCKET) ? -1 : (int)sock;
+      if (sock == INVALID_SOCKET) {
+            return ConnectOutcome{-1, Tess::Error::Err::ERR_NO_NETWORK};
+      }
+      return ConnectOutcome{(int)sock, Tess::Error::Err::ERR_UNKNOWN};
 }
 
 bool SocketSendAll(int fd, std::string_view data) {

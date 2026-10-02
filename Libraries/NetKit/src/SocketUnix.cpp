@@ -18,7 +18,7 @@
 
 namespace Tess::Net {
 
-int SocketConnect(const std::string &host, uint16_t port) {
+ConnectOutcome SocketConnect(const std::string &host, uint16_t port) {
       struct addrinfo hint{};
       hint.ai_family = AF_UNSPEC;     // IPv4 or IPv6
       hint.ai_socktype = SOCK_STREAM; // TCP
@@ -28,7 +28,7 @@ int SocketConnect(const std::string &host, uint16_t port) {
 
       int err = getaddrinfo(host.c_str(), port_str.c_str(), &hint, &res);
       if (err != 0 || res == nullptr) {
-            return -1;
+            return ConnectOutcome{-1, Tess::Error::Err::ERR_NAME_NOT_RESOLVED};
       }
 
       int fd = -1;
@@ -45,7 +45,10 @@ int SocketConnect(const std::string &host, uint16_t port) {
       }
 
       freeaddrinfo(res);
-      return fd;
+      if (fd == -1) {
+            return ConnectOutcome{-1, Tess::Error::Err::ERR_NO_NETWORK};
+      }
+      return ConnectOutcome{fd, Tess::Error::Err::ERR_UNKNOWN};
 }
 
 bool SocketSendAll(int fd, std::string_view data) {
