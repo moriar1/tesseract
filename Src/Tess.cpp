@@ -123,9 +123,8 @@ int main(int argc, char *argv[]) {
             }
             if (res->status != 200) {
                   std::println(stderr, "http {}: {}", res->status, raw);
-                  Tess::Error::Err status_err = res->status == 404
-                        ? Tess::Error::Err::ERR_NOT_FOUND
-                        : Tess::Error::Err::ERR_UNKNOWN;
+                  Tess::Error::Err status_err = res->status == 404 ? Tess::Error::Err::ERR_NOT_FOUND
+                                                                   : Tess::Error::Err::ERR_UNKNOWN;
                   ShowError(raw, status_err, res->status);
                   return "";
             }
