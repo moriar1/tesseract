@@ -11,7 +11,7 @@
 #include "DrawKit/Draw.hpp"
 #include "HtmlKit/Html.hpp"
 #include "NetKit/Net.hpp"
-#include "Pages/Error.hpp"
+#include "Pages/CanNotReach.hpp"
 #include "RenderKit/Render.hpp"
 
 #include <SDL3/SDL.h>
@@ -96,7 +96,8 @@ int main(int argc, char *argv[]) {
       // Returns the navigated-to raw URL, empty when it failed.
       // Failures paint a dark error page instead of only logging.
       auto ShowError = [&](const std::string &raw, const std::string &reason) {
-            doc = Tess::Html::Parse(Tess::Html::Tokenize(Tess::Pages::CannotReachHtml(raw, reason)));
+            doc = Tess::Html::Parse(
+                  Tess::Html::Tokenize(Tess::Pages::CannotReachHtml(raw, reason)));
             content.dark = true;
             page_dirty = true;
             scroll_y = 0.0f;
